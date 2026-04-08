@@ -299,7 +299,8 @@
         <div class="time-toggles" id="ratioToggles">
           <button class="time-btn" data-range="1W">1W</button>
           <button class="time-btn" data-range="1M">1M</button>
-          <button class="time-btn active" data-range="1Y">1Y</button>
+          <button class="time-btn active" data-range="6M">6M</button>
+          <button class="time-btn" data-range="1Y">1Y</button>
           <button class="time-btn" data-range="MAX">MAX</button>
         </div>
 
@@ -387,7 +388,7 @@
     // ── State ─────────────────────────────────────
     const cache = { ratio: {}, price: {} };
     let ratioChart = null, priceChart = null;
-    let currentRatioRange = '1Y', currentPriceRange = '1Y';
+    let currentRatioRange = '6M', currentPriceRange = '6M';
 
     // ── DOM ───────────────────────────────────────
     const ratioEl = document.getElementById('ratioValue');
@@ -431,9 +432,10 @@
       switch (range) {
         case '1W':  return { start: now - 7 * 86400, period: '1h', span: 168 };
         case '1M':  return { start: now - 30 * 86400, period: '4h', span: 180 };
+        case '6M':  return { start: now - 182 * 86400, period: '1d', span: 182 };
         case '1Y':  return { start: now - 365 * 86400, period: '1d', span: 365 };
         case 'MAX': return { start: 1477526400, period: '1w', span: Math.ceil((now - 1477526400) / (7 * 86400)) };
-        default:    return { start: now - 365 * 86400, period: '1d', span: 365 };
+        default:    return { start: now - 182 * 86400, period: '1d', span: 182 };
       }
     }
 
@@ -637,14 +639,14 @@
         Object.assign(cache.ratio, stored.ratio);
         Object.assign(cache.price, stored.price);
         // Render 1Y immediately from cache
-        showRatioChart('1Y');
-        showPriceChart('1Y');
+        showRatioChart('6M');
+        showPriceChart('6M');
       }
 
-      // 2. Fetch current prices + 1Y data in parallel (fastest visible result)
-      const [prices, data1Y] = await Promise.all([
+      // 2. Fetch current prices + 6M data in parallel (fastest visible result)
+      const [prices, data6M] = await Promise.all([
         fetchCurrentPrices(),
-        fetchHistorical('1Y')
+        fetchHistorical('6M')
       ]);
 
       // Update big numbers
@@ -658,15 +660,15 @@
         priceEl.textContent = '---';
       }
 
-      // Update 1Y with fresh data
-      cache.ratio['1Y'] = data1Y.ratio;
-      cache.price['1Y'] = data1Y.price;
-      showRatioChart('1Y');
-      showPriceChart('1Y');
+      // Update 6M with fresh data
+      cache.ratio['6M'] = data6M.ratio;
+      cache.price['6M'] = data6M.price;
+      showRatioChart('6M');
+      showPriceChart('6M');
 
       // 3. Lazy prefetch remaining ranges in background (no await)
-      Promise.all(['1W', '1M', 'MAX'].map(r => fetchHistorical(r))).then(results => {
-        ['1W', '1M', 'MAX'].forEach((r, i) => {
+      Promise.all(['1W', '1M', '1Y', 'MAX'].map(r => fetchHistorical(r))).then(results => {
+        ['1W', '1M', '1Y', 'MAX'].forEach((r, i) => {
           cache.ratio[r] = results[i].ratio;
           cache.price[r] = results[i].price;
         });
