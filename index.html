@@ -261,6 +261,14 @@
     @keyframes fadeUp {
       to { opacity: 1; transform: translateY(0); }
     }
+
+    /* ── Pixel Wave ────────────────────────────── */
+    #pixelWave {
+      width: 100%;
+      height: 60px;
+      display: block;
+      opacity: 0.35;
+    }
   </style>
 </head>
 <body>
@@ -345,6 +353,9 @@
       </div>
     </section>
   </main>
+
+  <!-- Pixel Wave -->
+  <canvas id="pixelWave"></canvas>
 
   <footer class="dock fade-in fade-in-d3">
     <div class="dock-label">
@@ -672,6 +683,62 @@
     }
 
     init();
+  </script>
+
+  <!-- Pixel Wave Animation -->
+  <script>
+    (function() {
+      const c = document.getElementById('pixelWave');
+      const ctx = c.getContext('2d');
+      const PX = 4;           // pixel block size
+      let cols, rows, w, h;
+
+      function resize() {
+        w = c.clientWidth;
+        h = c.clientHeight;
+        c.width = w;
+        c.height = h;
+        cols = Math.ceil(w / PX);
+        rows = Math.ceil(h / PX);
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      function draw(t) {
+        ctx.clearRect(0, 0, w, h);
+        const s = t * 0.001;
+
+        for (let x = 0; x < cols; x++) {
+          // layered sine waves for organic movement
+          const wave1 = Math.sin(x * 0.06 + s * 0.8) * 0.35;
+          const wave2 = Math.sin(x * 0.12 + s * 1.3) * 0.2;
+          const wave3 = Math.sin(x * 0.03 + s * 0.4) * 0.25;
+          const waveHeight = (wave1 + wave2 + wave3 + 0.8) * 0.5; // normalized 0..1
+
+          const peakRow = Math.floor((1 - waveHeight) * rows);
+
+          for (let y = peakRow; y < rows; y++) {
+            const depth = (y - peakRow) / (rows - peakRow); // 0 at peak, 1 at bottom
+            const alpha = (1 - depth) * 0.6;                // fade toward bottom
+
+            // glow: brighter near peak
+            if (y === peakRow) {
+              ctx.fillStyle = `rgba(245, 200, 66, ${alpha * 0.9})`;
+            } else if (y === peakRow + 1) {
+              ctx.fillStyle = `rgba(212, 160, 23, ${alpha * 0.7})`;
+            } else {
+              ctx.fillStyle = `rgba(138, 106, 10, ${alpha * 0.5})`;
+            }
+
+            ctx.fillRect(x * PX, y * PX, PX - 1, PX - 1); // -1 for pixel gap
+          }
+        }
+
+        requestAnimationFrame(draw);
+      }
+
+      requestAnimationFrame(draw);
+    })();
   </script>
 </body>
 </html>
