@@ -3,76 +3,126 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZEC / BTC Ratio</title>
-  <meta name="description" content="Live BTC to ZCash ratio with historical chart data">
+  <title>ZEC/BTC Ratio Terminal</title>
+  <meta name="description" content="Live BTC to ZCash ratio tracker with historical charts">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <style>
-    *, *::before, *::after {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    :root {
+      --gold: #d4a017;
+      --gold-bright: #f5c842;
+      --gold-dim: #8a6a0a;
+      --gold-glow: rgba(212, 160, 23, 0.4);
+      --gold-subtle: rgba(212, 160, 23, 0.08);
+      --bg: #0a0a0a;
+      --bg-panel: #0e0e0e;
+      --border: #1a1a1a;
+      --border-gold: rgba(212, 160, 23, 0.25);
+      --text-dim: #444;
+      --grid-size: 4px;
+      --border-thick: 2px;
+      --radius-lg: 12px;
+      --radius-sm: 6px;
     }
 
-    html, body {
-      height: 100%;
-      overflow-x: hidden;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #000;
-      color: #fff;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-
-    .container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      flex: 1;
-      width: 100%;
-      max-width: 900px;
-      padding: 2rem 1.5rem 1rem;
-    }
-
-    .headline {
-      font-size: 0.7rem;
-      font-weight: 500;
-      letter-spacing: 0.25em;
+      background-color: var(--bg);
+      background-image:
+        linear-gradient(rgba(212,160,23,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(212,160,23,0.03) 1px, transparent 1px);
+      background-size: var(--grid-size) var(--grid-size);
+      font-family: 'VT323', monospace;
+      color: var(--gold);
       text-transform: uppercase;
-      color: #666;
-      margin-bottom: 1.5rem;
-      text-align: center;
-    }
-
-    .ratio-wrapper {
-      position: relative;
+      line-height: 1.2;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
+      -webkit-font-smoothing: none;
+    }
+
+    /* ── Status Bar ─────────────────────────────── */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      margin-bottom: 0.5rem;
+      padding: 8px 20px;
+      border-bottom: var(--border-thick) solid var(--border-gold);
+      font-size: 1.2rem;
+      background: linear-gradient(180deg, rgba(212,160,23,0.04) 0%, transparent 100%);
     }
 
-    .ratio-number {
-      font-size: 9rem;
-      font-weight: 800;
-      line-height: 1;
-      letter-spacing: -0.04em;
-      color: #fff;
-      transition: opacity 0.3s ease;
-      text-align: center;
+    .status-left, .status-right { display: flex; align-items: center; gap: 12px; }
+    .status-center { color: var(--gold-bright); letter-spacing: 3px; font-size: 1.3rem; }
+
+    .icon-signal { display: flex; align-items: flex-end; gap: 2px; height: 16px; }
+    .icon-signal div { background-color: var(--gold); width: 4px; }
+    .icon-signal div:nth-child(1) { height: 4px; }
+    .icon-signal div:nth-child(2) { height: 8px; }
+    .icon-signal div:nth-child(3) { height: 12px; }
+    .icon-signal div:nth-child(4) { height: 16px; }
+
+    .icon-battery {
+      width: 30px; height: 14px;
+      border: 2px solid var(--gold); position: relative; padding: 1px;
+    }
+    .icon-battery::after {
+      content: ''; position: absolute; right: -4px; top: 2px;
+      width: 2px; height: 6px; background-color: var(--gold);
+    }
+    .icon-battery-fill { width: 80%; height: 100%; background-color: var(--gold); }
+
+    /* ── Main Layout ────────────────────────────── */
+    .container {
+      flex: 1; width: 100%; max-width: 1400px;
+      margin: 0 auto; padding: 24px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
     }
 
-    .ratio-number.loading {
+    /* ── Panels ─────────────────────────────────── */
+    .panel {
+      border: var(--border-thick) solid var(--border-gold);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      background: var(--bg-panel);
+      display: flex; flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(212,160,23,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .panel-header {
+      border-bottom: var(--border-thick) solid var(--border-gold);
+      padding-bottom: 16px; margin-bottom: 16px;
+      position: relative;
+    }
+
+    .panel-header h2 {
+      font-size: 2rem; letter-spacing: 3px;
+      color: var(--gold-bright);
+      text-shadow: 0 0 20px var(--gold-glow);
+    }
+    .panel-header p { font-size: 1.1rem; color: var(--gold-dim); margin-top: 4px; }
+
+    /* ── Big Number ──────────────────────────────── */
+    .metric-huge {
+      font-size: 4.5rem; letter-spacing: 4px;
+      display: block; margin: 16px 0 8px;
+      color: var(--gold-bright);
+      text-shadow: 0 0 30px var(--gold-glow), 0 0 60px rgba(212,160,23,0.15);
+    }
+
+    .metric-huge.loading {
       animation: pulse 1.8s ease-in-out infinite;
     }
 
@@ -81,84 +131,57 @@
       50% { opacity: 0.3; }
     }
 
-    .ratio-label {
-      font-size: 0.8rem;
-      font-weight: 400;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: #444;
-      margin-top: 0.75rem;
+    .metric-sub {
+      font-size: 1.2rem; color: var(--gold-dim);
+      letter-spacing: 1px; margin-bottom: 8px;
     }
 
-    .chart-section {
-      width: 100%;
-      margin-top: 3rem;
-      position: relative;
-    }
-
+    /* ── Time Toggles ───────────────────────────── */
     .time-toggles {
-      display: flex;
-      justify-content: center;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
+      display: flex; gap: 8px; margin-top: 20px; margin-bottom: 16px;
     }
 
     .time-btn {
       background: transparent;
-      border: 1px solid #222;
-      color: #555;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.7rem;
-      font-weight: 500;
-      letter-spacing: 0.1em;
-      padding: 0.4rem 1rem;
-      border-radius: 100px;
-      cursor: pointer;
-      transition: all 0.25s ease;
+      border: var(--border-thick) solid var(--border-gold);
+      border-radius: var(--radius-sm);
+      color: var(--gold-dim);
+      font-family: 'VT323', monospace;
+      font-size: 1.2rem; text-transform: uppercase;
+      padding: 6px 16px; cursor: pointer;
+      transition: all 0.15s ease;
     }
 
     .time-btn:hover {
-      border-color: #333;
-      color: #888;
+      border-color: var(--gold);
+      color: var(--gold);
     }
 
     .time-btn.active {
-      background: #111;
-      border-color: #333;
-      color: #fff;
+      background: var(--gold);
+      border-color: var(--gold);
+      color: var(--bg);
+      box-shadow: 0 0 12px var(--gold-glow);
     }
 
-    .chart-container {
-      width: 100%;
-      height: 220px;
-      position: relative;
+    /* ── Chart ──────────────────────────────────── */
+    .chart-wrap {
+      flex: 1; position: relative; min-height: 200px;
     }
 
     .chart-loading {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.3s ease;
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2; pointer-events: none;
+      opacity: 0; transition: opacity 0.3s ease;
     }
-
-    .chart-loading.visible {
-      opacity: 1;
-    }
+    .chart-loading.visible { opacity: 1; }
 
     .chart-loading-dot {
-      width: 4px;
-      height: 4px;
-      border-radius: 50%;
-      background: #333;
-      margin: 0 3px;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--gold-dim); margin: 0 4px;
       animation: dotPulse 1.2s ease-in-out infinite;
     }
-
     .chart-loading-dot:nth-child(2) { animation-delay: 0.15s; }
     .chart-loading-dot:nth-child(3) { animation-delay: 0.3s; }
 
@@ -167,138 +190,208 @@
       50% { opacity: 1; transform: scale(1.5); }
     }
 
-    footer {
-      padding: 1.5rem;
-      text-align: center;
+    /* ── Logic Boxes ────────────────────────────── */
+    .logic-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+      margin-top: auto; padding-top: 20px;
     }
 
-    .footer-text {
-      font-size: 0.6rem;
-      color: #2a2a2a;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+    .logic-box {
+      border: var(--border-thick) solid var(--border-gold);
+      border-radius: var(--radius-sm);
+      padding: 16px; display: flex; flex-direction: column;
+      align-items: center; text-align: center; gap: 8px;
     }
 
-    .footer-text a {
-      color: #2a2a2a;
-      text-decoration: none;
-      transition: color 0.2s ease;
+    .logic-box h3 { font-size: 1.4rem; color: var(--gold-bright); letter-spacing: 1px; }
+    .logic-box p { font-size: 1rem; color: var(--gold-dim); }
+
+    .icon-arrow-up, .icon-arrow-down {
+      width: 0; height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+    }
+    .icon-arrow-up { border-bottom: 14px solid var(--gold); }
+    .icon-arrow-down { border-top: 14px solid var(--gold); }
+
+    /* ── Dock / Footer ──────────────────────────── */
+    .dock {
+      border-top: var(--border-thick) solid var(--border-gold);
+      padding: 16px 24px;
+      display: flex; justify-content: center; gap: 12px;
+      background: linear-gradient(0deg, rgba(212,160,23,0.03) 0%, transparent 100%);
     }
 
-    .footer-text a:hover {
-      color: #444;
+    .dock-label {
+      font-size: 1rem; color: var(--gold-dim);
+      letter-spacing: 2px; padding: 8px 16px;
+      display: flex; align-items: center;
     }
 
-    /* Responsive */
-    @media (max-width: 768px) {
-      .ratio-number {
-        font-size: 5rem;
-      }
+    .dock-label a {
+      color: var(--gold-dim); text-decoration: none;
+      transition: color 0.2s;
+    }
+    .dock-label a:hover { color: var(--gold); }
 
-      .headline {
-        font-size: 0.6rem;
-        padding: 0 1rem;
-      }
-
-      .chart-container {
-        height: 180px;
-      }
-
-      .container {
-        padding: 1.5rem 1rem 1rem;
-      }
+    /* ── Responsive ─────────────────────────────── */
+    @media (max-width: 1024px) {
+      .container { grid-template-columns: 1fr; }
+      .metric-huge { font-size: 3.5rem; }
     }
 
-    @media (max-width: 480px) {
-      .ratio-number {
-        font-size: 3.5rem;
-      }
-
-      .chart-container {
-        height: 150px;
-      }
-
-      .time-btn {
-        padding: 0.35rem 0.75rem;
-        font-size: 0.65rem;
-      }
+    @media (max-width: 600px) {
+      .container { padding: 12px; gap: 16px; }
+      .panel { padding: 16px; }
+      .metric-huge { font-size: 2.5rem; }
+      .status-center { display: none; }
+      .logic-grid { grid-template-columns: 1fr; }
+      .time-btn { padding: 4px 10px; font-size: 1.1rem; }
     }
 
-    /* Fade-in on load */
+    /* ── Fade In ────────────────────────────────── */
     .fade-in {
-      opacity: 0;
-      transform: translateY(8px);
-      animation: fadeUp 0.8s ease forwards;
+      opacity: 0; transform: translateY(6px);
+      animation: fadeUp 0.6s ease forwards;
     }
-
-    .fade-in-delay-1 { animation-delay: 0.1s; }
-    .fade-in-delay-2 { animation-delay: 0.3s; }
-    .fade-in-delay-3 { animation-delay: 0.5s; }
+    .fade-in-d1 { animation-delay: 0.05s; }
+    .fade-in-d2 { animation-delay: 0.15s; }
+    .fade-in-d3 { animation-delay: 0.25s; }
 
     @keyframes fadeUp {
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <p class="headline fade-in">How Much ZCash Can You Buy With 1 BTC?</p>
 
-    <div class="ratio-wrapper fade-in fade-in-delay-1">
-      <div class="ratio-number loading" id="ratio">—</div>
-      <div class="ratio-label">ZEC per BTC</div>
+  <header class="status-bar fade-in">
+    <div class="status-left">
+      <div class="icon-signal"><div></div><div></div><div></div><div></div></div>
+      <span>SYS_TERMINAL</span>
     </div>
+    <div class="status-center">ZEC / BTC METRICS</div>
+    <div class="status-right">
+      <span id="clock">--:--</span>
+      <div class="icon-battery"><div class="icon-battery-fill"></div></div>
+    </div>
+  </header>
 
-    <div class="chart-section fade-in fade-in-delay-2">
-      <div class="time-toggles">
+  <main class="container">
+    <!-- LEFT: Ratio Panel -->
+    <section class="hero-section fade-in fade-in-d1" style="display:flex;flex-direction:column;gap:24px;">
+      <div class="panel" style="flex:1;">
+        <div class="panel-header">
+          <h2>THE RATIO</h2>
+          <p>How much ZCash can you buy with 1 BTC?</p>
+        </div>
+        <span class="metric-huge loading" id="ratioValue">---</span>
+        <p class="metric-sub" id="ratioSub">ZEC PER BTC</p>
+
+        <div class="time-toggles" id="ratioToggles">
+          <button class="time-btn" data-range="1W">1W</button>
+          <button class="time-btn" data-range="1M">1M</button>
+          <button class="time-btn active" data-range="1Y">1Y</button>
+          <button class="time-btn" data-range="MAX">MAX</button>
+        </div>
+
+        <div class="chart-wrap">
+          <div class="chart-loading" id="ratioChartLoading">
+            <div class="chart-loading-dot"></div>
+            <div class="chart-loading-dot"></div>
+            <div class="chart-loading-dot"></div>
+          </div>
+          <canvas id="ratioChart"></canvas>
+        </div>
+      </div>
+
+      <div class="logic-grid">
+        <div class="logic-box">
+          <div class="icon-arrow-up"></div>
+          <h3>RATIO UP</h3>
+          <p>ZEC is cheaper relative to BTC</p>
+        </div>
+        <div class="logic-box">
+          <div class="icon-arrow-down"></div>
+          <h3>RATIO DOWN</h3>
+          <p>ZEC is gaining ground on BTC</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: ZEC Price Panel -->
+    <section class="panel fade-in fade-in-d2">
+      <div class="panel-header">
+        <h2>ZEC PRICE</h2>
+        <p>Current ZCash Market Price (USD)</p>
+      </div>
+      <span class="metric-huge loading" id="priceValue">---</span>
+      <p class="metric-sub" id="priceSub">USD PER ZEC</p>
+
+      <div class="time-toggles" id="priceToggles">
         <button class="time-btn" data-range="1W">1W</button>
         <button class="time-btn" data-range="1M">1M</button>
         <button class="time-btn active" data-range="1Y">1Y</button>
         <button class="time-btn" data-range="MAX">MAX</button>
       </div>
 
-      <div class="chart-container">
-        <div class="chart-loading" id="chartLoading">
+      <div class="chart-wrap">
+        <div class="chart-loading" id="priceChartLoading">
           <div class="chart-loading-dot"></div>
           <div class="chart-loading-dot"></div>
           <div class="chart-loading-dot"></div>
         </div>
-        <canvas id="ratioChart"></canvas>
+        <canvas id="priceChart"></canvas>
       </div>
-    </div>
-  </div>
+    </section>
+  </main>
 
-  <footer class="fade-in fade-in-delay-3">
-    <p class="footer-text">Data from <a href="https://defillama.com" target="_blank" rel="noopener">DeFiLlama</a></p>
+  <footer class="dock fade-in fade-in-d3">
+    <div class="dock-label">
+      Data from <a href="https://defillama.com" target="_blank" rel="noopener">&nbsp;DeFiLlama</a>
+    </div>
   </footer>
 
   <script>
-    // ── State ──────────────────────────────────────────────
-    let chart = null;
-    let currentRange = '1Y';
-    let refreshInterval = null;
+    // ── State ─────────────────────────────────────
+    const cache = { ratio: {}, price: {} };
+    let ratioChart = null, priceChart = null;
+    let currentRatioRange = '1Y', currentPriceRange = '1Y';
+    let currentBtcPrice = 0, currentZecPrice = 0;
 
-    // ── DOM refs ──────────────────────────────────────────
-    const ratioEl = document.getElementById('ratio');
-    const chartLoading = document.getElementById('chartLoading');
-    const canvas = document.getElementById('ratioChart');
-    const ctx = canvas.getContext('2d');
+    // ── DOM ───────────────────────────────────────
+    const ratioEl = document.getElementById('ratioValue');
+    const priceEl = document.getElementById('priceValue');
+    const ratioChartCanvas = document.getElementById('ratioChart');
+    const priceChartCanvas = document.getElementById('priceChart');
+    const ratioCtx = ratioChartCanvas.getContext('2d');
+    const priceCtx = priceChartCanvas.getContext('2d');
+    const ratioLoading = document.getElementById('ratioChartLoading');
+    const priceLoading = document.getElementById('priceChartLoading');
+    const clockEl = document.getElementById('clock');
 
-    // ── API helpers ───────────────────────────────────────
-    const API_BASE = 'https://coins.llama.fi';
+    // ── Clock ─────────────────────────────────────
+    function updateClock() {
+      const now = new Date();
+      clockEl.textContent = now.toLocaleTimeString('en-US', {
+        hour: '2-digit', minute: '2-digit', hour12: false
+      });
+    }
+    updateClock();
+    setInterval(updateClock, 10000);
 
-    async function fetchCurrentRatio() {
+    // ── API ───────────────────────────────────────
+    const API = 'https://coins.llama.fi';
+
+    async function fetchCurrentPrices() {
       try {
-        const res = await fetch(`${API_BASE}/prices/current/coingecko:bitcoin,coingecko:zcash`);
+        const res = await fetch(`${API}/prices/current/coingecko:bitcoin,coingecko:zcash`);
         const data = await res.json();
-        const btcPrice = data.coins['coingecko:bitcoin'].price;
-        const zecPrice = data.coins['coingecko:zcash'].price;
-        return btcPrice / zecPrice;
+        currentBtcPrice = data.coins['coingecko:bitcoin'].price;
+        currentZecPrice = data.coins['coingecko:zcash'].price;
+        return { btc: currentBtcPrice, zec: currentZecPrice, ratio: currentBtcPrice / currentZecPrice };
       } catch (e) {
-        console.error('Failed to fetch current ratio:', e);
+        console.error('Price fetch failed:', e);
         return null;
       }
     }
@@ -306,168 +399,130 @@
     function getRangeParams(range) {
       const now = Math.floor(Date.now() / 1000);
       switch (range) {
-        case '1W':
-          return { start: now - 7 * 86400, period: '1h', span: 168 };
-        case '1M':
-          return { start: now - 30 * 86400, period: '4h', span: 180 };
-        case '1Y':
-          return { start: now - 365 * 86400, period: '1d', span: 365 };
-        case 'MAX': {
-          const weeks = Math.ceil((now - 1477526400) / (7 * 86400));
-          return { start: 1477526400, period: '1w', span: weeks };
-        }
-        default:
-          return { start: now - 365 * 86400, period: '1d', span: 365 };
+        case '1W':  return { start: now - 7 * 86400, period: '1h', span: 168 };
+        case '1M':  return { start: now - 30 * 86400, period: '4h', span: 180 };
+        case '1Y':  return { start: now - 365 * 86400, period: '1d', span: 365 };
+        case 'MAX': return { start: 1477526400, period: '1w', span: Math.ceil((now - 1477526400) / (7 * 86400)) };
+        default:    return { start: now - 365 * 86400, period: '1d', span: 365 };
       }
     }
 
-    async function fetchHistoricalData(range) {
+    async function fetchHistorical(range) {
       const { start, period, span } = getRangeParams(range);
-
       try {
         const [btcRes, zecRes] = await Promise.all([
-          fetch(`${API_BASE}/chart/coingecko:bitcoin?start=${start}&period=${period}&span=${span}`),
-          fetch(`${API_BASE}/chart/coingecko:zcash?start=${start}&period=${period}&span=${span}`)
+          fetch(`${API}/chart/coingecko:bitcoin?start=${start}&period=${period}&span=${span}`),
+          fetch(`${API}/chart/coingecko:zcash?start=${start}&period=${period}&span=${span}`)
         ]);
-
         const btcData = await btcRes.json();
         const zecData = await zecRes.json();
-
         const btcPrices = btcData.coins['coingecko:bitcoin'].prices;
         const zecPrices = zecData.coins['coingecko:zcash'].prices;
 
-        // Build a map of ZEC prices by timestamp for alignment
         const zecMap = new Map();
         zecPrices.forEach(p => zecMap.set(p.timestamp, p.price));
 
-        // Align: only include timestamps that exist in both
-        const aligned = [];
+        const ratioData = [], priceData = [];
         btcPrices.forEach(bp => {
-          const zecPrice = zecMap.get(bp.timestamp);
-          if (zecPrice && zecPrice > 0) {
-            aligned.push({
-              timestamp: bp.timestamp,
-              ratio: bp.price / zecPrice
-            });
+          const zp = zecMap.get(bp.timestamp);
+          if (zp && zp > 0) {
+            ratioData.push({ timestamp: bp.timestamp, value: bp.price / zp });
+            priceData.push({ timestamp: bp.timestamp, value: zp });
           }
         });
 
-        return aligned;
+        return { ratio: ratioData, price: priceData };
       } catch (e) {
-        console.error('Failed to fetch historical data:', e);
-        return [];
+        console.error('Historical fetch failed:', e);
+        return { ratio: [], price: [] };
       }
     }
 
-    // ── Counting animation ────────────────────────────────
-    function animateNumber(target, duration = 1200) {
-      ratioEl.classList.remove('loading');
+    // ── Prefetch ──────────────────────────────────
+    async function prefetchAll() {
+      const ranges = ['1W', '1M', '1Y', 'MAX'];
+      const results = await Promise.all(ranges.map(r => fetchHistorical(r)));
+      ranges.forEach((r, i) => {
+        cache.ratio[r] = results[i].ratio;
+        cache.price[r] = results[i].price;
+      });
+    }
+
+    // ── Number Animation ─────────────────────────
+    function animateNumber(el, target, prefix = '', suffix = '', decimals = 2) {
+      el.classList.remove('loading');
       const start = performance.now();
-      const startVal = 0;
-
+      const duration = 1200;
       function tick(now) {
-        const elapsed = now - start;
-        const progress = Math.min(elapsed / duration, 1);
-        // Ease out cubic
-        const eased = 1 - Math.pow(1 - progress, 3);
-        const current = startVal + (target - startVal) * eased;
-        ratioEl.textContent = current.toFixed(2);
-
-        if (progress < 1) {
-          requestAnimationFrame(tick);
-        }
+        const p = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = prefix + (target * eased).toFixed(decimals) + suffix;
+        if (p < 1) requestAnimationFrame(tick);
       }
-
       requestAnimationFrame(tick);
     }
 
-    function updateRatioDisplay(ratio) {
-      if (ratio === null) {
-        ratioEl.classList.remove('loading');
-        ratioEl.textContent = '—';
-        return;
-      }
-      // If first load (showing —), animate from 0
-      if (ratioEl.textContent === '—' || ratioEl.textContent === '') {
-        animateNumber(ratio);
-      } else {
-        // Subsequent updates: smooth transition
-        ratioEl.textContent = ratio.toFixed(2);
-      }
+    // ── Chart Builder ────────────────────────────
+    function formatDate(ts, range) {
+      const d = new Date(ts * 1000);
+      if (range === '1W' || range === '1M')
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
     }
 
-    // ── Chart ─────────────────────────────────────────────
-    function formatDate(timestamp, range) {
-      const date = new Date(timestamp * 1000);
-      if (range === '1W' || range === '1M') {
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      }
-      if (range === '1Y') {
-        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      }
-      // MAX
-      return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-    }
-
-    function createOrUpdateChart(data, range) {
+    function buildChart(canvasCtx, canvasEl, data, range, tooltipSuffix, existingChart) {
       const labels = data.map(d => formatDate(d.timestamp, range));
-      const values = data.map(d => d.ratio);
+      const values = data.map(d => d.value);
 
-      // Create gradient
-      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.parentElement.clientHeight);
-      gradient.addColorStop(0, 'rgba(0, 208, 132, 0.15)');
-      gradient.addColorStop(0.6, 'rgba(0, 208, 132, 0.03)');
-      gradient.addColorStop(1, 'rgba(0, 208, 132, 0)');
+      const grad = canvasCtx.createLinearGradient(0, 0, 0, canvasEl.parentElement.clientHeight);
+      grad.addColorStop(0, 'rgba(212, 160, 23, 0.18)');
+      grad.addColorStop(0.5, 'rgba(212, 160, 23, 0.04)');
+      grad.addColorStop(1, 'rgba(212, 160, 23, 0)');
 
       const chartData = {
         labels,
         datasets: [{
           data: values,
-          borderColor: '#00d084',
+          borderColor: '#d4a017',
           borderWidth: 1.5,
-          backgroundColor: gradient,
+          backgroundColor: grad,
           fill: true,
-          tension: 0.35,
+          tension: 0.3,
           pointRadius: 0,
           pointHoverRadius: 4,
-          pointHoverBackgroundColor: '#00d084',
-          pointHoverBorderColor: '#000',
+          pointHoverBackgroundColor: '#f5c842',
+          pointHoverBorderColor: '#0a0a0a',
           pointHoverBorderWidth: 2,
         }]
       };
 
-      const chartOptions = {
+      const opts = {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: {
-          mode: 'index',
-          intersect: false,
-        },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
             backgroundColor: 'rgba(10, 10, 10, 0.95)',
-            titleColor: '#666',
-            bodyColor: '#fff',
-            titleFont: { family: 'Inter', size: 11, weight: '400' },
-            bodyFont: { family: 'Inter', size: 13, weight: '600' },
+            titleColor: '#8a6a0a',
+            bodyColor: '#f5c842',
+            titleFont: { family: 'VT323', size: 14 },
+            bodyFont: { family: 'VT323', size: 16 },
             padding: { top: 8, bottom: 8, left: 12, right: 12 },
-            borderColor: '#222',
+            borderColor: 'rgba(212,160,23,0.25)',
             borderWidth: 1,
-            cornerRadius: 8,
+            cornerRadius: 6,
             displayColors: false,
             callbacks: {
-              title: function(items) {
+              title(items) {
                 if (!items.length) return '';
-                const idx = items[0].dataIndex;
-                const ts = data[idx].timestamp;
-                const d = new Date(ts * 1000);
-                return d.toLocaleDateString('en-US', {
+                const ts = data[items[0].dataIndex].timestamp;
+                return new Date(ts * 1000).toLocaleDateString('en-US', {
                   month: 'short', day: 'numeric', year: 'numeric'
                 });
               },
-              label: function(item) {
-                return item.parsed.y.toFixed(2) + ' ZEC/BTC';
+              label(item) {
+                return item.parsed.y.toFixed(2) + ' ' + tooltipSuffix;
               }
             }
           }
@@ -478,11 +533,11 @@
             grid: { display: false },
             border: { display: false },
             ticks: {
-              color: '#333',
-              font: { family: 'Inter', size: 10, weight: '400' },
+              color: '#3a3000',
+              font: { family: 'VT323', size: 13 },
               maxTicksLimit: 6,
               maxRotation: 0,
-              padding: 8,
+              padding: 6,
             }
           },
           y: {
@@ -491,79 +546,98 @@
             grid: { display: false },
             border: { display: false },
             ticks: {
-              color: '#282828',
-              font: { family: 'Inter', size: 10, weight: '400' },
+              color: '#2a2000',
+              font: { family: 'VT323', size: 13 },
               maxTicksLimit: 4,
-              padding: 8,
-              callback: function(val) {
-                return val.toFixed(0);
-              }
+              padding: 6,
+              callback: v => v.toFixed(v >= 100 ? 0 : 2)
             }
           }
         },
-        animation: {
-          duration: 600,
-          easing: 'easeOutCubic',
-        }
+        animation: { duration: 500, easing: 'easeOutCubic' }
       };
 
-      if (chart) {
-        chart.data = chartData;
-        chart.options = chartOptions;
-        chart.update('default');
-      } else {
-        chart = new Chart(ctx, {
-          type: 'line',
-          data: chartData,
-          options: chartOptions,
-        });
+      if (existingChart) {
+        existingChart.data = chartData;
+        existingChart.options = opts;
+        existingChart.update('default');
+        return existingChart;
       }
+      return new Chart(canvasCtx, { type: 'line', data: chartData, options: opts });
     }
 
-    // ── UI interactions ───────────────────────────────────
-    function setActiveButton(range) {
-      document.querySelectorAll('.time-btn').forEach(btn => {
+    // ── Load Chart from Cache ────────────────────
+    function showRatioChart(range) {
+      currentRatioRange = range;
+      setActive('ratioToggles', range);
+      const data = cache.ratio[range];
+      if (!data || !data.length) {
+        ratioLoading.classList.add('visible');
+        return;
+      }
+      ratioLoading.classList.remove('visible');
+      ratioChart = buildChart(ratioCtx, ratioChartCanvas, data, range, 'ZEC/BTC', ratioChart);
+    }
+
+    function showPriceChart(range) {
+      currentPriceRange = range;
+      setActive('priceToggles', range);
+      const data = cache.price[range];
+      if (!data || !data.length) {
+        priceLoading.classList.add('visible');
+        return;
+      }
+      priceLoading.classList.remove('visible');
+      priceChart = buildChart(priceCtx, priceChartCanvas, data, range, 'USD', priceChart);
+    }
+
+    function setActive(containerId, range) {
+      document.querySelectorAll(`#${containerId} .time-btn`).forEach(btn => {
         btn.classList.toggle('active', btn.dataset.range === range);
       });
     }
 
-    async function loadChart(range) {
-      currentRange = range;
-      setActiveButton(range);
-      chartLoading.classList.add('visible');
-
-      const data = await fetchHistoricalData(range);
-
-      chartLoading.classList.remove('visible');
-
-      if (data.length > 0) {
-        createOrUpdateChart(data, range);
-      }
-    }
-
-    // Button click handlers
-    document.querySelectorAll('.time-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.dataset.range !== currentRange) {
-          loadChart(btn.dataset.range);
-        }
-      });
+    // ── Button Handlers ──────────────────────────
+    document.querySelectorAll('#ratioToggles .time-btn').forEach(btn => {
+      btn.addEventListener('click', () => showRatioChart(btn.dataset.range));
+    });
+    document.querySelectorAll('#priceToggles .time-btn').forEach(btn => {
+      btn.addEventListener('click', () => showPriceChart(btn.dataset.range));
     });
 
-    // ── Init ──────────────────────────────────────────────
+    // ── Init ─────────────────────────────────────
     async function init() {
-      // Fetch current ratio
-      const ratio = await fetchCurrentRatio();
-      updateRatioDisplay(ratio);
+      // Show loading on both charts
+      ratioLoading.classList.add('visible');
+      priceLoading.classList.add('visible');
 
-      // Load default chart
-      loadChart('1Y');
+      // Fetch current prices + prefetch all historical in parallel
+      const [prices] = await Promise.all([
+        fetchCurrentPrices(),
+        prefetchAll()
+      ]);
 
-      // Auto-refresh every 60s
-      refreshInterval = setInterval(async () => {
-        const r = await fetchCurrentRatio();
-        if (r !== null) {
-          updateRatioDisplay(r);
+      // Update big numbers
+      if (prices) {
+        animateNumber(ratioEl, prices.ratio, '', '', 2);
+        animateNumber(priceEl, prices.zec, '$', '', 2);
+      } else {
+        ratioEl.classList.remove('loading');
+        priceEl.classList.remove('loading');
+        ratioEl.textContent = '---';
+        priceEl.textContent = '---';
+      }
+
+      // Render default charts (1Y)
+      showRatioChart('1Y');
+      showPriceChart('1Y');
+
+      // Auto-refresh prices every 60s
+      setInterval(async () => {
+        const p = await fetchCurrentPrices();
+        if (p) {
+          ratioEl.textContent = p.ratio.toFixed(2);
+          priceEl.textContent = '$' + p.zec.toFixed(2);
         }
       }, 60000);
     }
