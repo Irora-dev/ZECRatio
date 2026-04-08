@@ -353,11 +353,30 @@
   </footer>
 
   <script>
+    // ── localStorage Cache ───────────────────────
+    const CACHE_KEY = 'zecratio_v1';
+    const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (Date.now() - parsed.ts > CACHE_TTL) return null;
+        return parsed.data;
+      } catch { return null; }
+    }
+
+    function saveToStorage(data) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+      } catch {}
+    }
+
     // ── State ─────────────────────────────────────
     const cache = { ratio: {}, price: {} };
     let ratioChart = null, priceChart = null;
     let currentRatioRange = '1Y', currentPriceRange = '1Y';
-    let currentBtcPrice = 0, currentZecPrice = 0;
 
     // ── DOM ───────────────────────────────────────
     const ratioEl = document.getElementById('ratioValue');
@@ -387,9 +406,9 @@
       try {
         const res = await fetch(`${API}/prices/current/coingecko:bitcoin,coingecko:zcash`);
         const data = await res.json();
-        currentBtcPrice = data.coins['coingecko:bitcoin'].price;
-        currentZecPrice = data.coins['coingecko:zcash'].price;
-        return { btc: currentBtcPrice, zec: currentZecPrice, ratio: currentBtcPrice / currentZecPrice };
+        const btc = data.coins['coingecko:bitcoin'].price;
+        const zec = data.coins['coingecko:zcash'].price;
+        return { btc, zec, ratio: btc / zec };
       } catch (e) {
         console.error('Price fetch failed:', e);
         return null;
@@ -407,17 +426,16 @@
       }
     }
 
+    // Single combined request per range (1 call instead of 2)
     async function fetchHistorical(range) {
       const { start, period, span } = getRangeParams(range);
       try {
-        const [btcRes, zecRes] = await Promise.all([
-          fetch(`${API}/chart/coingecko:bitcoin?start=${start}&period=${period}&span=${span}`),
-          fetch(`${API}/chart/coingecko:zcash?start=${start}&period=${period}&span=${span}`)
-        ]);
-        const btcData = await btcRes.json();
-        const zecData = await zecRes.json();
-        const btcPrices = btcData.coins['coingecko:bitcoin'].prices;
-        const zecPrices = zecData.coins['coingecko:zcash'].prices;
+        const res = await fetch(
+          `${API}/chart/coingecko:bitcoin,coingecko:zcash?start=${start}&period=${period}&span=${span}`
+        );
+        const data = await res.json();
+        const btcPrices = data.coins['coingecko:bitcoin'].prices;
+        const zecPrices = data.coins['coingecko:zcash'].prices;
 
         const zecMap = new Map();
         zecPrices.forEach(p => zecMap.set(p.timestamp, p.price));
@@ -436,16 +454,6 @@
         console.error('Historical fetch failed:', e);
         return { ratio: [], price: [] };
       }
-    }
-
-    // ── Prefetch ──────────────────────────────────
-    async function prefetchAll() {
-      const ranges = ['1W', '1M', '1Y', 'MAX'];
-      const results = await Promise.all(ranges.map(r => fetchHistorical(r)));
-      ranges.forEach((r, i) => {
-        cache.ratio[r] = results[i].ratio;
-        cache.price[r] = results[i].price;
-      });
     }
 
     // ── Number Animation ─────────────────────────
@@ -607,14 +615,23 @@
 
     // ── Init ─────────────────────────────────────
     async function init() {
-      // Show loading on both charts
       ratioLoading.classList.add('visible');
       priceLoading.classList.add('visible');
 
-      // Fetch current prices + prefetch all historical in parallel
-      const [prices] = await Promise.all([
+      // 1. Try localStorage cache for instant render
+      const stored = loadFromStorage();
+      if (stored) {
+        Object.assign(cache.ratio, stored.ratio);
+        Object.assign(cache.price, stored.price);
+        // Render 1Y immediately from cache
+        showRatioChart('1Y');
+        showPriceChart('1Y');
+      }
+
+      // 2. Fetch current prices + 1Y data in parallel (fastest visible result)
+      const [prices, data1Y] = await Promise.all([
         fetchCurrentPrices(),
-        prefetchAll()
+        fetchHistorical('1Y')
       ]);
 
       // Update big numbers
@@ -628,9 +645,21 @@
         priceEl.textContent = '---';
       }
 
-      // Render default charts (1Y)
+      // Update 1Y with fresh data
+      cache.ratio['1Y'] = data1Y.ratio;
+      cache.price['1Y'] = data1Y.price;
       showRatioChart('1Y');
       showPriceChart('1Y');
+
+      // 3. Lazy prefetch remaining ranges in background (no await)
+      Promise.all(['1W', '1M', 'MAX'].map(r => fetchHistorical(r))).then(results => {
+        ['1W', '1M', 'MAX'].forEach((r, i) => {
+          cache.ratio[r] = results[i].ratio;
+          cache.price[r] = results[i].price;
+        });
+        // Persist everything to localStorage
+        saveToStorage({ ratio: cache.ratio, price: cache.price });
+      });
 
       // Auto-refresh prices every 60s
       setInterval(async () => {
