@@ -437,16 +437,18 @@
       }
     }
 
-    // Single combined request per range (1 call instead of 2)
+    // Separate requests per coin (combined endpoint caps at 500 data points)
     async function fetchHistorical(range) {
       const { start, period, span } = getRangeParams(range);
       try {
-        const res = await fetch(
-          `${API}/chart/coingecko:bitcoin,coingecko:zcash?start=${start}&period=${period}&span=${span}`
-        );
-        const data = await res.json();
-        const btcPrices = data.coins['coingecko:bitcoin'].prices;
-        const zecPrices = data.coins['coingecko:zcash'].prices;
+        const [btcRes, zecRes] = await Promise.all([
+          fetch(`${API}/chart/coingecko:bitcoin?start=${start}&period=${period}&span=${span}`),
+          fetch(`${API}/chart/coingecko:zcash?start=${start}&period=${period}&span=${span}`)
+        ]);
+        const btcData = await btcRes.json();
+        const zecData = await zecRes.json();
+        const btcPrices = btcData.coins['coingecko:bitcoin'].prices;
+        const zecPrices = zecData.coins['coingecko:zcash'].prices;
 
         const zecMap = new Map();
         zecPrices.forEach(p => zecMap.set(p.timestamp, p.price));
